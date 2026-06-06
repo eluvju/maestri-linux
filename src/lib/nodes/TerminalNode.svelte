@@ -6,12 +6,15 @@
 
   let {
     id,
-    label = 'Terminal',
+    label = '',
     color = '#0f3460',
     x,
     y,
     width = 640,
     height = 400,
+    groupId = null,
+    groups = [],
+    ongroupchange,
   }: {
     id: string;
     label?: string;
@@ -20,6 +23,9 @@
     y: number;
     width?: number;
     height?: number;
+    groupId?: string | null;
+    groups?: Array<{ id: string; label: string; color: string }>;
+    ongroupchange?: (gid: string | null) => void;
   } = $props();
 
   let dragging = $state(false);
@@ -30,11 +36,24 @@
   let nodeX = $state(x);
   let nodeY = $state(y);
 
+  let resizing = $state(false);
+  let resizeStartX = $state(0);
+  let resizeStartY = $state(0);
+  let resizeStartW = $state(0);
+  let resizeStartH = $state(0);
+  let nodeW = $state(width);
+  let nodeH = $state(height);
+
   $effect(() => {
     if (!dragging) {
       nodeX = x;
       nodeY = y;
     }
+  });
+
+  $effect(() => {
+    nodeW = width;
+    nodeH = height;
   });
 
   function handleHeaderDown(e: MouseEvent) {
@@ -49,11 +68,18 @@
   }
 
   function handleMove(e: MouseEvent) {
-    if (!dragging) return;
-    const dx = (e.clientX - dragStartX) / $viewport.zoom;
-    const dy = (e.clientY - dragStartY) / $viewport.zoom;
-    nodeX = nodeStartX + dx;
-    nodeY = nodeStartY + dy;
+    if (dragging) {
+      const dx = (e.clientX - dragStartX) / $viewport.zoom;
+      const dy = (e.clientY - dragStartY) / $viewport.zoom;
+      nodeX = nodeStartX + dx;
+      nodeY = nodeStartY + dy;
+    }
+    if (resizing) {
+      const dx = (e.clientX - resizeStartX) / $viewport.zoom;
+      const dy = (e.clientY - resizeStartY) / $viewport.zoom;
+      nodeW = Math.max(320, resizeStartW + dx);
+      nodeH = Math.max(200, resizeStartH + dy);
+    }
   }
 
   function handleUp() {
@@ -61,6 +87,20 @@
       dragging = false;
       nodes.move(id, nodeX, nodeY);
     }
+    if (resizing) {
+      resizing = false;
+      nodes.setSize(id, nodeW, nodeH);
+    }
+  }
+
+  function handleResizeDown(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    resizing = true;
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    resizeStartW = nodeW;
+    resizeStartH = nodeH;
   }
 
   async function handleDelete(e: MouseEvent) {
@@ -77,12 +117,12 @@
   style="
     left: {nodeX}px;
     top: {nodeY}px;
-    width: {width}px;
-    height: {height}px;
+    width: {nodeW}px;
+    height: {nodeH}px;
     border-color: {color};
   "
 >
-  <NodeHeader {label} {color} ondelete={handleDelete} onmousedown={handleHeaderDown} oncolorchange={(c) => nodes.setColor(id, c)} />
+  <NodeHeader {label} {color} {groupId} {groups} ondelete={handleDelete} onmousedown={handleHeaderDown} oncolorchange={(c) => nodes.setColor(id, c)} onlabelchange={(l) => nodes.setLabel(id, l)} ongroupchange={(gid) => ongroupchange?.(gid)} />
   <div
     class="terminal-body"
     onmousedown={(e) => e.stopPropagation()}
@@ -90,6 +130,7 @@
   >
     <XtermWrapper nodeId={id} />
   </div>
+  <div class="resize-handle" onmousedown={handleResizeDown} />
 </div>
 
 <style>
@@ -111,5 +152,19 @@
   .xterm-container {
     height: 100%;
     width: 100%;
+  }
+  .resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.3) 50%);
+    opacity: 0.5;
+    z-index: 10;
+  }
+  .resize-handle:hover {
+    opacity: 1;
   }
 </style>

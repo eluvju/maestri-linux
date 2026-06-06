@@ -27,7 +27,7 @@ impl PtyManager {
         }
     }
 
-    pub fn spawn(&mut self, node_id: Uuid, emitter: PtyEmitter) -> Result<(), String> {
+    pub fn spawn(&mut self, node_id: Uuid, emitter: PtyEmitter, _service: &str) -> Result<(), String> {
         let pair = self
             .pty_system
             .openpty(PtySize {
@@ -38,8 +38,8 @@ impl PtyManager {
             })
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
 
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".into());
-        let mut cmd = CommandBuilder::new(&shell);
+        let cmd_name = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".into());
+        let mut cmd = CommandBuilder::new(&cmd_name);
         cmd.env("TERM", "xterm-256color");
 
         let child = pair
@@ -147,7 +147,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            graph: Mutex::new(crate::state::Graph::default()),
+            graph: Mutex::new(crate::state::Graph::load_or_default()),
             pty: Mutex::new(PtyManager::new()),
         }
     }

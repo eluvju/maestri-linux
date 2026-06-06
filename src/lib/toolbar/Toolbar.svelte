@@ -3,11 +3,15 @@
     onaddnode,
     ondelete,
     onconnect,
+    onaddgroup,
+    onaddnote,
     hasSelection = false,
   }: {
     onaddnode?: () => void;
     ondelete?: () => void;
     onconnect?: () => void;
+    onaddgroup?: () => void;
+    onaddnote?: () => void;
     hasSelection?: boolean;
   } = $props();
 </script>
@@ -15,6 +19,12 @@
 <div class="toolbar">
   <button class="tool-btn" onclick={onaddnode} title="Add terminal node">
     + Terminal
+  </button>
+  <button class="tool-btn" onclick={onaddnote} title="Add sticky note">
+    + Note
+  </button>
+  <button class="tool-btn" onclick={onaddgroup} title="Add group">
+    + Group
   </button>
   {#if hasSelection}
     <button class="tool-btn" onclick={onconnect} title="Connect selected nodes">
