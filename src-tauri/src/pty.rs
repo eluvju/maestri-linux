@@ -12,7 +12,7 @@ pub struct PtyInstance {
 
 pub struct PtyManager {
     ptys: HashMap<Uuid, PtyInstance>,
-    pty_system: Box<dyn PtySystem>,
+    pty_system: Box<dyn PtySystem + Send>,
 }
 
 impl PtyManager {
