@@ -3,14 +3,14 @@ mod pty;
 mod state;
 
 use pty::AppState;
-use tauri::State;
+use tauri::{AppHandle, State};
 use uuid::Uuid;
 
 #[tauri::command]
-fn create_node(app_state: State<AppState>, x: f64, y: f64) -> Result<String, String> {
+fn create_node(app_state: State<AppState>, x: f64, y: f64, app: AppHandle) -> Result<String, String> {
     let id = app_state.graph.lock().unwrap().add_node(x, y);
     let id_str = id.to_string();
-    app_state.pty.lock().unwrap().spawn(id).map_err(|e| e)?;
+    app_state.pty.lock().unwrap().spawn(id, app).map_err(|e| e)?;
     Ok(id_str)
 }
 
@@ -61,6 +61,12 @@ fn resize_pty(app_state: State<AppState>, id: String, cols: u16, rows: u16, widt
     app_state.pty.lock().unwrap().resize(uuid, cols, rows, width, height)
 }
 
+#[tauri::command]
+fn write_pty(app_state: State<AppState>, id: String, data: Vec<u8>) -> Result<(), String> {
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    app_state.pty.lock().unwrap().write(uuid, &data)
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -73,6 +79,7 @@ pub fn run() {
             get_graph,
             move_node,
             resize_pty,
+            write_pty,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

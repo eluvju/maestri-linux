@@ -1,13 +1,13 @@
 use portable_pty::{CommandBuilder, NativePtySystem, PtyPair, PtySize, PtySystem};
 use std::collections::HashMap;
-use std::io::{Read, Write};
 use std::sync::Mutex;
+use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
 pub struct PtyInstance {
     pub pair: PtyPair,
-    pub reader: Box<dyn Read + Send>,
-    pub writer: Box<dyn Write + Send>,
+    pub reader: Box<dyn std::io::Read + Send>,
+    pub writer: Box<dyn std::io::Write + Send>,
 }
 
 pub struct PtyManager {
@@ -23,7 +23,7 @@ impl PtyManager {
         }
     }
 
-    pub fn spawn(&mut self, node_id: Uuid) -> Result<(), String> {
+    pub fn spawn(&mut self, node_id: Uuid, app: AppHandle) -> Result<(), String> {
         let pair = self
             .pty_system
             .openpty(PtySize {
@@ -58,10 +58,28 @@ impl PtyManager {
             node_id,
             PtyInstance {
                 pair,
-                reader,
+                reader: Box::new(std::io::empty()),
                 writer,
             },
         );
+
+        let app_clone = app.clone();
+        let node_id_clone = node_id;
+
+        std::thread::spawn(move || {
+            let mut buf = vec![0u8; 4096];
+            let mut reader_ref = reader;
+            loop {
+                match reader_ref.read(&mut buf) {
+                    Ok(n) if n > 0 => {
+                        let data: Vec<u8> = buf[..n].to_vec();
+                        let _ = app_clone.emit(&format!("pty-output-{}", node_id_clone), data);
+                    }
+                    Ok(_) => break,
+                    Err(_) => break,
+                }
+            }
+        });
 
         Ok(())
     }
@@ -80,24 +98,7 @@ impl PtyManager {
             .map_err(|e| format!("Failed to write to PTY: {}", e))
     }
 
-    pub fn read(&mut self, node_id: Uuid, buf: &mut [u8]) -> Result<usize, String> {
-        let inst = self
-            .ptys
-            .get_mut(&node_id)
-            .ok_or_else(|| format!("PTY not found for node {}", node_id))?;
-        inst.reader
-            .read(buf)
-            .map_err(|e| format!("Failed to read from PTY: {}", e))
-    }
-
-    pub fn resize(
-        &mut self,
-        node_id: Uuid,
-        cols: u16,
-        rows: u16,
-        width: u16,
-        height: u16,
-    ) -> Result<(), String> {
+    pub fn resize(&mut self, node_id: Uuid, cols: u16, rows: u16, width: u16, height: u16) -> Result<(), String> {
         let inst = self
             .ptys
             .get_mut(&node_id)
