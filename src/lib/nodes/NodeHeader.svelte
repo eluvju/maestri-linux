@@ -20,9 +20,10 @@
       onblur={() => { nodeLabel = editLabel; editing = false; }}
       onkeydown={(e) => { if (e.key === 'Enter') { nodeLabel = editLabel; editing = false; } }}
       autofocus
+      style="background:#0f3460;border:1px solid #e94560;color:#e0e0e0;padding:2px 6px;border-radius:4px;font-size:13px;flex:1;outline:none;"
     />
   {:else}
-    <span class="label" ondblclick={() => { editLabel = nodeLabel; editing = true; }}>
+    <span class="label" role="button" tabindex="0" ondblclick={() => { editLabel = nodeLabel; editing = true; }}>
       {nodeLabel || 'Terminal'}
     </span>
   {/if}
@@ -61,15 +62,5 @@
   }
   .close-btn:hover {
     color: #ff5555;
-  }
-  input {
-    background: #0f3460;
-    border: 1px solid #e94560;
-    color: #e0e0e0;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 13px;
-    flex: 1;
-    outline: none;
   }
 </style>

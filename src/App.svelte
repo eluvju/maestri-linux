@@ -4,7 +4,6 @@
   import Canvas from '$lib/canvas/Canvas.svelte';
   import Toolbar from '$lib/toolbar/Toolbar.svelte';
   import TerminalNode from '$lib/nodes/TerminalNode.svelte';
-  import XtermWrapper from '$lib/terminal/XtermWrapper.svelte';
   import ConnectionLayer from '$lib/connections/ConnectionLayer.svelte';
   import { nodes, connections } from '$lib/nodes/nodesStore';
   import { viewport } from '$lib/canvas/canvasStore';
@@ -65,7 +64,6 @@
       height={node.height}
       onclick={() => selectNode(node.id)}
     />
-    <XtermWrapper nodeId={node.id} />
   {/each}
 </Canvas>
 

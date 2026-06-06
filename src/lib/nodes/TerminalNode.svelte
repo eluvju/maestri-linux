@@ -1,6 +1,7 @@
 <script lang="ts">
   import { viewport } from '$lib/canvas/canvasStore';
   import NodeHeader from './NodeHeader.svelte';
+  import XtermWrapper from '$lib/terminal/XtermWrapper.svelte';
   import { nodes } from './nodesStore';
 
   let {
@@ -72,7 +73,7 @@
     onmousedown={(e) => e.stopPropagation()}
     role="terminal"
   >
-    <div class="xterm-container" id="xterm-{id}"></div>
+    <XtermWrapper nodeId={id} />
   </div>
 </div>
 
