@@ -5,6 +5,7 @@ export interface NodeData {
   id: string;
   kind: 'Terminal' | 'StickyNote';
   label: string;
+  color: string;
   x: number;
   y: number;
   width: number;
@@ -30,9 +31,19 @@ function createNodesStore() {
     },
     async remove(id: string) {
       await invoke('remove_node', { id });
+      update(n => n.filter(x => x.id !== id));
     },
     async move(id: string, x: number, y: number) {
       await invoke('move_node', { id, x, y });
+      update(n => n.map(node => node.id === id ? { ...node, x, y } : node));
+    },
+    async setLabel(id: string, label: string) {
+      await invoke('set_node_label', { id, label });
+      update(n => n.map(node => node.id === id ? { ...node, label } : node));
+    },
+    async setColor(id: string, color: string) {
+      await invoke('set_node_color', { id, color });
+      update(n => n.map(node => node.id === id ? { ...node, color } : node));
     },
     refresh(nodes: NodeData[]) {
       set(nodes);

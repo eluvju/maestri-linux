@@ -1,13 +1,16 @@
 use portable_pty::{CommandBuilder, NativePtySystem, PtyPair, PtySize, PtySystem};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
+
+const BUFFER_CAPACITY: usize = 64 * 1024;
 
 pub struct PtyInstance {
     pub pair: PtyPair,
     pub reader: Box<dyn std::io::Read + Send>,
     pub writer: Box<dyn std::io::Write + Send>,
+    pub buffer: Arc<Mutex<Vec<u8>>>,
 }
 
 pub struct PtyManager {
@@ -54,12 +57,16 @@ impl PtyManager {
             .take_writer()
             .map_err(|e| format!("Failed to get writer: {}", e))?;
 
+        let buffer = Arc::new(Mutex::new(Vec::<u8>::new()));
+        let buffer_clone = buffer.clone();
+
         self.ptys.insert(
             node_id,
             PtyInstance {
                 pair,
                 reader: Box::new(std::io::empty()),
                 writer,
+                buffer,
             },
         );
 
@@ -73,7 +80,13 @@ impl PtyManager {
                 match reader_ref.read(&mut buf) {
                     Ok(n) if n > 0 => {
                         let data: Vec<u8> = buf[..n].to_vec();
-                        let _ = app_clone.emit(&format!("pty-output-{}", node_id_clone), data);
+                        let _ = app_clone.emit(&format!("pty-output-{}", node_id_clone), &data);
+                        let mut b = buffer_clone.lock().unwrap();
+                        if b.len() + data.len() > BUFFER_CAPACITY {
+                            let excess = b.len() + data.len() - BUFFER_CAPACITY;
+                            b.drain(..excess);
+                        }
+                        b.extend_from_slice(&data);
                     }
                     Ok(_) => break,
                     Err(_) => break,
@@ -82,6 +95,15 @@ impl PtyManager {
         });
 
         Ok(())
+    }
+
+    pub fn get_buffer(&self, node_id: Uuid) -> Vec<u8> {
+        if let Some(inst) = self.ptys.get(&node_id) {
+            if let Ok(b) = inst.buffer.lock() {
+                return b.clone();
+            }
+        }
+        Vec::new()
     }
 
     pub fn kill(&mut self, node_id: Uuid) {

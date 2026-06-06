@@ -6,12 +6,16 @@
 
   let {
     id,
+    label = 'Terminal',
+    color = '#0f3460',
     x,
     y,
     width = 640,
     height = 400,
   }: {
     id: string;
+    label?: string;
+    color?: string;
     x: number;
     y: number;
     width?: number;
@@ -26,12 +30,21 @@
   let nodeX = $state(x);
   let nodeY = $state(y);
 
+  $effect(() => {
+    if (!dragging) {
+      nodeX = x;
+      nodeY = y;
+    }
+  });
+
   function handleHeaderDown(e: MouseEvent) {
+    if (e.button !== 0) return;
     dragging = true;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     nodeStartX = nodeX;
     nodeStartY = nodeY;
+    e.preventDefault();
     e.stopPropagation();
   }
 
@@ -50,8 +63,9 @@
     }
   }
 
-  async function handleDelete() {
-    await nodes.remove(id);
+  async function handleDelete(e: MouseEvent) {
+    e.stopPropagation();
+    await nodes.remove(id).catch(() => {});
   }
 </script>
 
@@ -65,9 +79,10 @@
     top: {nodeY}px;
     width: {width}px;
     height: {height}px;
+    border-color: {color};
   "
 >
-  <NodeHeader label="Terminal" ondelet={handleDelete} onmousedown={handleHeaderDown} />
+  <NodeHeader {label} {color} ondelete={handleDelete} onmousedown={handleHeaderDown} oncolorchange={(c) => nodes.setColor(id, c)} />
   <div
     class="terminal-body"
     onmousedown={(e) => e.stopPropagation()}

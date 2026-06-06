@@ -3,6 +3,7 @@ mod pty;
 mod state;
 
 use pty::AppState;
+use state::NodeKind;
 use tauri::{AppHandle, State};
 use uuid::Uuid;
 
@@ -56,9 +57,39 @@ fn move_node(app_state: State<AppState>, id: String, x: f64, y: f64) -> Result<(
 }
 
 #[tauri::command]
+fn set_node_label(app_state: State<AppState>, id: String, label: String) -> Result<(), String> {
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let mut graph = app_state.graph.lock().unwrap();
+    if let Some(node) = graph.get_node_mut(uuid) {
+        node.label = label;
+        Ok(())
+    } else {
+        Err("Node not found".into())
+    }
+}
+
+#[tauri::command]
+fn set_node_color(app_state: State<AppState>, id: String, color: String) -> Result<(), String> {
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    let mut graph = app_state.graph.lock().unwrap();
+    if let Some(node) = graph.get_node_mut(uuid) {
+        node.color = color;
+        Ok(())
+    } else {
+        Err("Node not found".into())
+    }
+}
+
+#[tauri::command]
 fn resize_pty(app_state: State<AppState>, id: String, cols: u16, rows: u16, width: u16, height: u16) -> Result<(), String> {
     let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
     app_state.pty.lock().unwrap().resize(uuid, cols, rows, width, height)
+}
+
+#[tauri::command]
+fn get_pty_buffer(app_state: State<AppState>, id: String) -> Result<Vec<u8>, String> {
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    Ok(app_state.pty.lock().unwrap().get_buffer(uuid))
 }
 
 #[tauri::command]
@@ -78,8 +109,11 @@ pub fn run() {
             disconnect_nodes,
             get_graph,
             move_node,
+            set_node_label,
+            set_node_color,
             resize_pty,
             write_pty,
+            get_pty_buffer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

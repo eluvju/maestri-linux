@@ -6,6 +6,10 @@ export async function startTerminalRead(nodeId: string, onData: (data: Uint8Arra
   const unlisten = await listen<number[]>(`pty-output-${nodeId}`, (event) => {
     onData(new Uint8Array(event.payload));
   });
+  const buf = await invoke<number[]>('get_pty_buffer', { id: nodeId });
+  if (buf.length > 0) {
+    onData(new Uint8Array(buf));
+  }
   return unlisten;
 }
 

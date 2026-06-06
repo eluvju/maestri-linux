@@ -58,6 +58,8 @@
   {#each $nodes as node (node.id)}
     <TerminalNode
       id={node.id}
+      label={node.label}
+      color={node.color}
       x={node.x}
       y={node.y}
       width={node.width}
