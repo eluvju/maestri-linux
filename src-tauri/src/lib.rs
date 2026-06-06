@@ -3,19 +3,45 @@ mod pty;
 mod state;
 
 use pty::AppState;
+use std::fs::OpenOptions;
+use std::io::Write;
 use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
+
+fn log_to_file(msg: &str) {
+    if let Ok(mut f) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/maestri-linux.log")
+    {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        let _ = writeln!(f, "[{}] {}", secs, msg);
+    }
+}
+
+#[tauri::command]
+fn log_msg(level: String, msg: String) {
+    log_to_file(&format!("[{}] {}", level, msg));
+}
 
 #[tauri::command]
 fn create_node(app_state: State<AppState>, x: f64, y: f64, app: AppHandle) -> Result<String, String> {
     let id = app_state.graph.lock().unwrap().add_node(x, y);
     let id_str = id.to_string();
+    log_to_file(&format!("[create_node] id={} x={} y={}", id_str, x, y));
     let app_clone = app.clone();
     let node_id = id;
+    let id_for_log = id_str.clone();
     let emitter: Box<dyn Fn(&[u8]) + Send> = Box::new(move |data| {
         let _ = app_clone.emit(&format!("pty-output-{}", node_id), data.to_vec());
+        log_to_file(&format!("[emitter] node={} emitted {} bytes", id_for_log, data.len()));
     });
-    app_state.pty.lock().unwrap().spawn(id, emitter).map_err(|e| e)?;
+    app_state.pty.lock().unwrap().spawn(id, emitter).map_err(|e| {
+        log_to_file(&format!("[create_node] spawn failed: {}", e));
+        e
+    })?;
+    log_to_file(&format!("[create_node] spawn OK id={}", id_str));
     Ok(id_str)
 }
 
@@ -107,7 +133,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
-            create_node,
+             create_node,
             remove_node,
             connect_nodes,
             disconnect_nodes,
@@ -118,6 +144,7 @@ pub fn run() {
             resize_pty,
             write_pty,
             get_pty_buffer,
+            log_msg,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

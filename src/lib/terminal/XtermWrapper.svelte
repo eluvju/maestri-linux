@@ -2,8 +2,13 @@
   import { onMount, onDestroy } from 'svelte';
   import { Terminal } from 'xterm';
   import { FitAddon } from 'xterm-addon-fit';
+  import { invoke } from '@tauri-apps/api/core';
   import { startTerminalRead, writeToTerminal, resizeTerminal } from './terminal';
   import 'xterm/css/xterm.css';
+
+  function log(msg: string) {
+    invoke('log_msg', { level: 'XtermWrapper'.toString(), msg: msg + ' nodeId=' + nodeId }).catch(() => {});
+  }
 
   let {
     nodeId,
@@ -17,7 +22,7 @@
   let unlisten: (() => void) | null = null;
 
   onMount(() => {
-    console.log('[XtermWrapper] mounting nodeId:', nodeId);
+    log('mounting');
     term = new Terminal({
       cursorBlink: true,
       cursorStyle: 'block',
@@ -43,21 +48,21 @@
     fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(container);
-    console.log('[XtermWrapper] terminal opened for', nodeId);
+    log('terminal opened');
 
     term.onData((data) => {
-      console.log('[XtermWrapper] onData (length:', data.length, ')');
+      log('onData length=' + data.length);
       writeToTerminal(nodeId, data);
     });
 
     startTerminalRead(nodeId, (data) => {
-      console.log('[XtermWrapper] got output, bytes:', data.length);
+      log('got output bytes=' + data.length);
       term.write(data);
-    }).then((fn) => { unlisten = fn; console.log('[XtermWrapper] listener registered for', nodeId); });
+    }).then((fn) => { unlisten = fn; log('listener registered'); });
 
     requestAnimationFrame(() => {
       fitAddon.fit();
-      console.log('[XtermWrapper] fitAddon.fit() done');
+      log('fitAddon.fit() done');
     });
 
     const resizeObserver = new ResizeObserver(() => {
