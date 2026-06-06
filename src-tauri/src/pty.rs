@@ -1,10 +1,11 @@
 use portable_pty::{CommandBuilder, NativePtySystem, PtyPair, PtySize, PtySystem};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
 const BUFFER_CAPACITY: usize = 64 * 1024;
+
+type PtyEmitter = Box<dyn Fn(&[u8]) + Send>;
 
 pub struct PtyInstance {
     pub pair: PtyPair,
@@ -26,7 +27,7 @@ impl PtyManager {
         }
     }
 
-    pub fn spawn(&mut self, node_id: Uuid, app: AppHandle) -> Result<(), String> {
+    pub fn spawn(&mut self, node_id: Uuid, emitter: PtyEmitter) -> Result<(), String> {
         let pair = self
             .pty_system
             .openpty(PtySize {
@@ -70,9 +71,6 @@ impl PtyManager {
             },
         );
 
-        let app_clone = app.clone();
-        let node_id_clone = node_id;
-
         std::thread::spawn(move || {
             let mut buf = vec![0u8; 4096];
             let mut reader_ref = reader;
@@ -80,7 +78,7 @@ impl PtyManager {
                 match reader_ref.read(&mut buf) {
                     Ok(n) if n > 0 => {
                         let data: Vec<u8> = buf[..n].to_vec();
-                        let _ = app_clone.emit(&format!("pty-output-{}", node_id_clone), &data);
+                        emitter(&data);
                         let mut b = buffer_clone.lock().unwrap();
                         if b.len() + data.len() > BUFFER_CAPACITY {
                             let excess = b.len() + data.len() - BUFFER_CAPACITY;

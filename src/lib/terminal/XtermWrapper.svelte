@@ -17,6 +17,7 @@
   let unlisten: (() => void) | null = null;
 
   onMount(() => {
+    console.log('[XtermWrapper] mounting nodeId:', nodeId);
     term = new Terminal({
       cursorBlink: true,
       cursorStyle: 'block',
@@ -42,17 +43,21 @@
     fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(container);
+    console.log('[XtermWrapper] terminal opened for', nodeId);
 
     term.onData((data) => {
+      console.log('[XtermWrapper] onData (length:', data.length, ')');
       writeToTerminal(nodeId, data);
     });
 
     startTerminalRead(nodeId, (data) => {
+      console.log('[XtermWrapper] got output, bytes:', data.length);
       term.write(data);
-    }).then((fn) => { unlisten = fn; });
+    }).then((fn) => { unlisten = fn; console.log('[XtermWrapper] listener registered for', nodeId); });
 
     requestAnimationFrame(() => {
       fitAddon.fit();
+      console.log('[XtermWrapper] fitAddon.fit() done');
     });
 
     const resizeObserver = new ResizeObserver(() => {
@@ -60,7 +65,7 @@
         fitAddon.fit();
         const dims = fitAddon.proposeDimensions();
         if (dims) {
-          resizeTerminal(nodeId, dims.cols, dims.rows, dims.width * 10, dims.height * 18);
+          resizeTerminal(nodeId, dims.cols, dims.rows, 640, 400);
         }
       } catch {}
     });
