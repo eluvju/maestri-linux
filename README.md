@@ -15,6 +15,10 @@ Inspired by [Maestri.app](https://maestri.app) for macOS. Built from scratch for
 
 [GitHub](https://github.com/eluvju/maestri-linux)
 
+<p align="center">
+  <img src="img/screenshot.png" alt="Maestri Linux screenshot" width="800">
+</p>
+
 ## Install
 
 ### AppImage (recommended)
