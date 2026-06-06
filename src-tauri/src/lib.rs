@@ -1,3 +1,4 @@
+pub mod pty;
 pub mod state;
 
 pub fn run() {
